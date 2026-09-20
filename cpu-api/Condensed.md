@@ -52,6 +52,12 @@
 - Consequence: reading `/proc/<pid>/status` in a loop (as `h6`'s `peek_state()` does) always gets a fresh, current answer — there's no "stale copy" to worry about. The only race is time-of-check-to-time-of-use: the process can change state (or fully disappear) between your `read()` and whatever you do next, same as any live system query.
 - This is also why the same mechanism scales to everything else under `/proc` — `/proc/<pid>/fd`, `/proc/<pid>/maps`, `/proc/meminfo`, etc. are all synthesized on read from live kernel data structures, not real files on any disk.
 
+## h7 — closing STDOUT_FILENO then printf()
+- `printf()` after `close(STDOUT_FILENO)` doesn't fail, and looks like it worked: it returns the byte count as normal, because it only appends to `stdio`'s userspace buffer — it doesn't call `write(2)` itself. The closed fd isn't touched until the buffer is actually flushed.
+- Flushing is where it bites: `fflush(stdout)` (or a buffer filling up, or process exit) triggers the real `write(fd 1, ...)` — *that* fails with `EBADF`, but silently, since almost nothing checks `fflush`'s or `exit`'s return value. Net effect: the output just vanishes with no visible error.
+- A raw `write(STDOUT_FILENO, ...)` (bypassing stdio's buffer entirely) fails immediately with `EBADF` — no buffer to hide behind.
+- Bigger gotcha: closing fd 1 frees that slot, so the kernel hands it to the **next `open()`** (lowest-available-fd rule). Any code that still writes to fd 1 directly — including library code you don't control — ends up silently writing into that unrelated new file instead of erroring or reaching a terminal. Moral: never just `close()` a standard fd; redirect it (e.g. `dup2` onto `/dev/null` or a real file) so the slot doesn't go up for grabs.
+
 ## C → Rust port
 - Hand-written `extern "C"` blocks (raw `libc` signatures) work but give zero ergonomics: bare ints for pid/fd, manual errno checks, magic numbers for flags (`O_CREAT`, `PROT_READ`, ...).
 - `nix` crate wraps the same syscalls safely: `fork() -> Result<ForkResult, Errno>`, `open()/write()` with typed `OFlag`/`Mode`, `mmap_anonymous()` with typed `ProtFlags`/`MapFlags` — same syscalls, real error handling, no manual constant-guessing.
