@@ -1,0 +1,23 @@
+[package]
+name = "cpu-api-rs"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "h1"
+path = "h1.rs"
+
+[[bin]]
+name = "h2"
+path = "h2.rs"
+
+[[bin]]
+name = "h3"
+path = "h3.rs"
+
+[[bin]]
+name = "h4"
+path = "h4.rs"
+
+[dependencies]
+nix = { version = "0.31.3", features = ["process", "mman", "fs"] }
