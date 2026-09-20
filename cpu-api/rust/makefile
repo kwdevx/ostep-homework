@@ -12,3 +12,6 @@ h4: h4.rs
 
 h5: h5.rs
 	cargo run --quiet --bin h5
+
+h6: h6.rs
+	cargo run --quiet --bin h6

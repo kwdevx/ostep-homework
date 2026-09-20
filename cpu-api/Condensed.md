@@ -39,6 +39,11 @@
 - Exit status only gets **8 bits**: `exit(n)` is truncated to `n & 0xFF` before `wait()`/`WEXITSTATUS()` ever sees it. `exit(1)` → status `1`. `exit(-1)` → the byte pattern of `-1` is `0xFF` → status **255**. This is why "255" shows up so often for negative/out-of-range exit codes — it's truncation, not a special meaning.
 - Rust's `nix::sys::wait::wait()` returns a typed `WaitStatus` enum (`Exited(pid, code)`, `Signaled(...)`, ...) instead of a raw int + bitmask macros (`WEXITSTATUS`, `WIFEXITED`, ...) — same underlying info, no manual bit-twiddling.
 
+## h6 — waitpid()
+- `waitpid(pid, &status, options)` generalizes `wait()` two ways `wait()` can't: (1) target a **specific** child pid instead of reaping "whichever exits first" (matters once you have multiple children and need to reap them in a known relationship, not just exit order); (2) `WNOHANG` makes it **non-blocking** — returns immediately (`0` in C / `WaitStatus::StillAlive` in Rust) if that child hasn't exited yet, instead of freezing the caller.
+- Useful whenever the parent has other work to do while a child runs — the canonical example is a shell polling a background job (`cmd &`) instead of hanging the prompt.
+- Same buffering gotcha as h1/h4 shows up again: with a 2-second-sleeping child and a polling loop in between, piped/non-tty output can reorder (child's exit-triggered flush landing before the still-running parent's buffered lines) unless the parent `fflush(stdout)`s after each `printf`. Rust's `println!` needed no such fix, same as before.
+
 ## C → Rust port
 - Hand-written `extern "C"` blocks (raw `libc` signatures) work but give zero ergonomics: bare ints for pid/fd, manual errno checks, magic numbers for flags (`O_CREAT`, `PROT_READ`, ...).
 - `nix` crate wraps the same syscalls safely: `fork() -> Result<ForkResult, Errno>`, `open()/write()` with typed `OFlag`/`Mode`, `mmap_anonymous()` with typed `ProtFlags`/`MapFlags` — same syscalls, real error handling, no manual constant-guessing.
