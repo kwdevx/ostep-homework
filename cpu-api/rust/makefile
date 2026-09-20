@@ -9,3 +9,6 @@ h3: h3.rs
 
 h4: h4.rs
 	cargo run --quiet --bin h4
+
+h5: h5.rs
+	cargo run --quiet --bin h5

@@ -9,3 +9,6 @@ h3: h3.c
 
 h4: h4.c
 	gcc -o h4 h4.c -Wall && ./h4 && rm h4
+
+h5: h5.c
+	gcc -o h5 h5.c -Wall && ./h5 && rm h5

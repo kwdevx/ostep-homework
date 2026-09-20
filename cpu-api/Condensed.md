@@ -33,6 +33,12 @@
 - Buffering strikes again: `printf` before `fork()` is unflushed; `exec()` wipes the child's inherited stdio buffer entirely (fresh process image), so only the *parent's* buffer survives — all of it dumped together at final exit. Fix: `fflush(stdout)` before `fork()`. Rust's `println!` avoids this — it flushes per line even when piped, so `h4.rs` didn't need the equivalent fix.
 - Rust/`nix` only has the `v`-style calls (`execv`, `execve`, `execvp`, `execvpe`) — no `l` equivalent, because that axis exists in C purely due to its variadic-argument ABI, which Rust can't call into generically. Building a `&[CString]` array is no less convenient than listing args, so the axis just doesn't exist in Rust.
 
+## h5 — wait()
+- `wait(&status)` **blocks** until any one of the caller's children exits, then returns that child's pid. Called in a loop, it's how a parent reaps multiple children one at a time.
+- `wait()` only waits for your *own* children — never siblings, never the parent. Called in the **child** (which has none of its own), it fails immediately: returns `-1` in C / `Err(Errno::ECHILD)` in Rust ("No child processes").
+- Exit status only gets **8 bits**: `exit(n)` is truncated to `n & 0xFF` before `wait()`/`WEXITSTATUS()` ever sees it. `exit(1)` → status `1`. `exit(-1)` → the byte pattern of `-1` is `0xFF` → status **255**. This is why "255" shows up so often for negative/out-of-range exit codes — it's truncation, not a special meaning.
+- Rust's `nix::sys::wait::wait()` returns a typed `WaitStatus` enum (`Exited(pid, code)`, `Signaled(...)`, ...) instead of a raw int + bitmask macros (`WEXITSTATUS`, `WIFEXITED`, ...) — same underlying info, no manual bit-twiddling.
+
 ## C → Rust port
 - Hand-written `extern "C"` blocks (raw `libc` signatures) work but give zero ergonomics: bare ints for pid/fd, manual errno checks, magic numbers for flags (`O_CREAT`, `PROT_READ`, ...).
 - `nix` crate wraps the same syscalls safely: `fork() -> Result<ForkResult, Errno>`, `open()/write()` with typed `OFlag`/`Mode`, `mmap_anonymous()` with typed `ProtFlags`/`MapFlags` — same syscalls, real error handling, no manual constant-guessing.
