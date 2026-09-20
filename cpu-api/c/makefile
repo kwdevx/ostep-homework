@@ -18,3 +18,6 @@ h6: h6.c
 
 h7: h7.c
 	gcc -o h7 h7.c -Wall && ./h7 && rm h7
+
+h8: h8.c
+	gcc -o h8 h8.c -Wall && ./h8 && rm h8

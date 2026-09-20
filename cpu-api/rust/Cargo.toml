@@ -27,5 +27,13 @@ path = "h5.rs"
 name = "h6"
 path = "h6.rs"
 
+[[bin]]
+name = "h7"
+path = "h7.rs"
+
+[[bin]]
+name = "h8"
+path = "h8.rs"
+
 [dependencies]
 nix = { version = "0.31.3", features = ["process", "mman", "fs"] }
