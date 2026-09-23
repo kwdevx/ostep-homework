@@ -37,3 +37,6 @@ path = "h8.rs"
 
 [dependencies]
 nix = { version = "0.31.3", features = ["process", "mman", "fs"] }
+mmap-sync = "2.0.4"
+rkyv = { version = "0.7.40", features = ["validation", "strict"] }
+bytecheck = "0.6.8"
