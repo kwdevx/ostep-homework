@@ -21,3 +21,6 @@ h7: h7.rs
 
 h8: h8.rs
 	cargo run --quiet --bin h8
+
+h9: h9.rs
+	cargo run --quiet --bin h9
