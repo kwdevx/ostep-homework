@@ -67,6 +67,13 @@
 - Rust's `OwnedFd` makes the close-discipline automatic: `drop(fd)` closes it, and the borrow checker complains if you try to use an fd after dropping it — harder to accidentally leak the wrong end open than in C, where a forgotten `close()` compiles fine.
 - `nix::unistd::dup2_stdout()`/`dup2_stdin()` are purpose-built for this (redirect *a* fd onto the well-known stdout/stdin slot) — cleaner than the generic `dup2()`, which in this nix version wants ownership of the *target* fd (`&mut OwnedFd`) rather than a bare fd number.
 
+## h9 — mmap-sync struct sharing (fun side-quest off h3)
+- h3 shares one fixed-size `int` flag via raw `mmap(MAP_SHARED|ANON)`, with the caller hand-rolling correctness: `volatile` so the compiler doesn't cache the read, and a single one-way 0→1 transition so a spin-wait can't observe a torn value.
+- `mmap-sync` (Rust-only, [cloudflare/mmap-sync](https://github.com/cloudflare/mmap-sync)) generalizes that to an arbitrary, variable-size struct — safely, without hand-rolled `volatile` tricks. It keeps **two** mmap'd data files plus a small state file behind `Synchronizer::new(path)`: the writer always fills the *inactive* data file via `write()`, then atomically flips a pointer in the state file once the write is complete.
+- This is RCU-style (Read-Copy-Update, same technique the Linux kernel uses): copy into a fresh version, then swap a pointer — never mutate the version a reader might currently be looking at. A reader's `read()` always lands on a complete, fully-written struct; it can never observe a partial write, and it never blocks the writer (or vice versa).
+- `h9.rs` forks a writer (child, publishes a new `Snapshot{tick, pid, note}` every ~50ms) and a reader (parent, polls every ~12ms and prints each new version it sees) — same fork()-before-sharing shape as h3, but sharing a growing struct across two real *processes* instead of one flag, and without needing `volatile` since `mmap-sync`'s atomic state-pointer flip is what h3's `volatile` int + spin-loop was manually approximating.
+- Data must implement `rkyv`'s `Archive`/`Serialize`/`Deserialize` (+ `bytecheck::CheckBytes` for validated reads) — zero-copy deserialization means the reader accesses the struct's fields straight out of mapped memory, no parse step.
+
 ## C → Rust port
 - Hand-written `extern "C"` blocks (raw `libc` signatures) work but give zero ergonomics: bare ints for pid/fd, manual errno checks, magic numbers for flags (`O_CREAT`, `PROT_READ`, ...).
 - `nix` crate wraps the same syscalls safely: `fork() -> Result<ForkResult, Errno>`, `open()/write()` with typed `OFlag`/`Mode`, `mmap_anonymous()` with typed `ProtFlags`/`MapFlags` — same syscalls, real error handling, no manual constant-guessing.
