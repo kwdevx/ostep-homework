@@ -24,3 +24,6 @@ h8: h8.rs
 
 h9: h9.rs
 	cargo run --quiet --bin h9
+
+model-demo: examples/model_writer.rs examples/model_worker.rs examples/run_model_demo.sh
+	./examples/run_model_demo.sh
