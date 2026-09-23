@@ -35,6 +35,10 @@ path = "h7.rs"
 name = "h8"
 path = "h8.rs"
 
+[[bin]]
+name = "h9"
+path = "h9.rs"
+
 [dependencies]
 nix = { version = "0.31.3", features = ["process", "mman", "fs"] }
 mmap-sync = "2.0.4"
