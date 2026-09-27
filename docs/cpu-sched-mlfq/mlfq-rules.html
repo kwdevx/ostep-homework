@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>MLFQ Rule Ladder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F2F4F7; --panel:#FFFFFF; --ink:#18202C; --muted:#5A6576; --line:#D9DEE6; --soft:#E8ECF2;
+  --accent:#2C5BD6; --ok:#1F8A5B; --ok-bg:#DDF2E7; --bad:#C23A4B; --bad-bg:#F8E0E3;
+  --boost:#B7791F; --io:#A6AFBD;
+  --jA:#3E6FD8; --jB:#E0842F; --jC:#1E9E78; --jG:#D6455D; --jP:#8A5CD6;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#10141B; --panel:#171C25; --ink:#E4E8EF; --muted:#9AA5B6; --line:#2B3342; --soft:#1F2632;
+    --accent:#7FA2FF; --ok:#5DD39E; --ok-bg:#16352A; --bad:#FF7F8F; --bad-bg:#3A1C23;
+    --boost:#E3B04B; --io:#56607078;
+    --jA:#6F95F0; --jB:#F09B4C; --jC:#3CC49B; --jG:#F0687E; --jP:#A887F0;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#10141B; --panel:#171C25; --ink:#E4E8EF; --muted:#9AA5B6; --line:#2B3342; --soft:#1F2632;
+  --accent:#7FA2FF; --ok:#5DD39E; --ok-bg:#16352A; --bad:#FF7F8F; --bad-bg:#3A1C23;
+  --boost:#E3B04B; --io:#566070;
+  --jA:#6F95F0; --jB:#F09B4C; --jC:#3CC49B; --jG:#F0687E; --jP:#A887F0;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;padding:28px 16px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:20px}
+header h1{font-size:30px;line-height:1.15;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:68ch}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+.panel h2{font-size:17px;margin:0 0 4px}
+/* matrix */
+.mx-scroll{overflow-x:auto}
+table.mx{border-collapse:separate;border-spacing:0;width:100%;min-width:640px;font-size:14px}
+.mx th,.mx td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+.mx thead th{font-weight:600;font-size:13px}
+.mx thead th small{display:block;font-weight:400;color:var(--muted)}
+.mx tbody th{font-weight:600;white-space:nowrap}
+.mx tbody th small{display:block;font-weight:400;color:var(--muted);font-family:var(--mono);font-size:11px}
+.mx tr.sel th{color:var(--accent)}
+.cell{display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;border-radius:999px;padding:3px 10px 3px 8px;font:500 13px var(--mono);cursor:pointer;background:none;color:inherit}
+.cell.ok{background:var(--ok-bg);color:var(--ok)}
+.cell.bad{background:var(--bad-bg);color:var(--bad)}
+.cell.cur{border-color:currentColor;box-shadow:0 0 0 2px var(--panel),0 0 0 4px currentColor}
+.cell:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:end}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:500 13px var(--sans);padding:7px 12px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ctl{display:grid;gap:6px}
+.range{display:flex;align-items:center;gap:10px;font:500 13px var(--mono)}
+.range input{width:160px;accent-color:var(--accent)}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+/* main */
+.main{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:1fr}}
+.rules{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.rules li{display:grid;grid-template-columns:38px 1fr;gap:8px;font-size:14px;padding:8px 10px;border-radius:7px;background:var(--soft)}
+.rules li .n{font:600 13px var(--mono);color:var(--muted)}
+.rules li.new{background:none;box-shadow:inset 0 0 0 1.5px var(--accent)}
+.rules li.new .n{color:var(--accent)}
+.rules li.gone{background:none;color:var(--muted);text-decoration:line-through;text-decoration-color:var(--bad)}
+.rules li .tag{font:600 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-left:6px}
+.rules li.gone .tag{color:var(--bad)}
+.why{margin-top:14px;display:grid;gap:10px;font-size:14px}
+.why div{padding-left:12px;border-left:3px solid var(--line)}
+.why .w{border-color:var(--ok)}
+.why .l{border-color:var(--bad)}
+.why b{display:block;font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.chart-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;align-items:baseline}
+.verdict{font:500 14px var(--mono);padding:4px 10px;border-radius:6px}
+.verdict.ok{background:var(--ok-bg);color:var(--ok)}
+.verdict.bad{background:var(--bad-bg);color:var(--bad)}
+.q{margin:2px 0 12px;color:var(--muted);font-size:14px}
+.svg-scroll{overflow-x:auto}
+svg{display:block;width:100%;min-width:560px;height:auto;font-family:var(--mono)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;margin-top:8px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.sw.ready{background:repeating-linear-gradient(135deg,var(--muted) 0 2px,transparent 2px 5px);opacity:.6}
+.sw.io{height:3px;background:var(--io)}
+.sw.boost{width:2px;height:14px;background:var(--boost)}
+.tbl-scroll{overflow-x:auto;margin-top:14px}
+table.m{border-collapse:collapse;width:100%;min-width:520px;font-size:13px;font-variant-numeric:tabular-nums}
+.m th,.m td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+.m th:first-child,.m td:first-child{text-align:left}
+.m thead th{font:600 11px var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.m td{font-family:var(--mono)}
+.foot{color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:no-preference){.cell,.seg button{transition:background .15s,color .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="label">OSTEP ch.8 · Multi-Level Feedback Queue</div>
+    <h1>MLFQ Rule Ladder</h1>
+    <p>Each step adds rules to fix the problem the step before it left behind. Pick a step and a workload to watch it on the queues, or click any cell in the grid.</p>
+  </header>
+
+  <section class="panel">
+    <h2>Which step handles which workload</h2>
+    <p class="q" style="margin-bottom:8px">Every cell is a live run of the simulator below, using the current tuning.</p>
+    <div class="mx-scroll"><table class="mx" id="mx"></table></div>
+  </section>
+
+  <section class="panel controls" aria-label="Controls">
+    <div class="ctl"><span class="label">Step</span><div class="seg" id="stepSeg"></div></div>
+    <div class="ctl"><span class="label">Workload</span><div class="seg" id="scSeg"></div></div>
+    <div class="ctl"><label class="label" for="sRange">Boost period S</label>
+      <div class="range"><input type="range" id="sRange" min="20" max="160" step="10" value="50"><span id="sVal">50 ms</span></div></div>
+    <div class="ctl"><span class="label">Tuning</span>
+      <label class="chk"><input type="checkbox" id="longer"> Longer slices lower down (10 / 20 / 40 ms)</label></div>
+  </section>
+
+  <div class="main">
+    <section class="panel" aria-live="polite">
+      <div class="label" id="stepLabel"></div>
+      <h2 id="stepName"></h2>
+      <ul class="rules" id="rules"></ul>
+      <div class="why" id="why"></div>
+    </section>
+
+    <section class="panel">
+      <div class="chart-head">
+        <h2 id="scName"></h2>
+        <span class="verdict" id="verdict"></span>
+      </div>
+      <p class="q" id="scQ"></p>
+      <div class="label">Queues: who runs, and at which priority</div>
+      <div class="svg-scroll"><svg id="qsvg" role="img" aria-label="Running job per millisecond, by queue"></svg></div>
+      <div class="label" style="margin-top:14px">Jobs: running, waiting, in I/O</div>
+      <div class="svg-scroll"><svg id="jsvg" role="img" aria-label="State of each job per millisecond"></svg></div>
+      <div class="legend" id="legend"></div>
+      <div class="tbl-scroll"><table class="m" id="metrics"></table></div>
+    </section>
+  </div>
+
+  <p class="foot">Simulated in 1 ms ticks for 200 ms with 3 queues (Q2 top, Q0 bottom). Each queue's allotment equals its time slice, as in the book's examples. A job that is waiting counts as "ready" when it could run but another job has the CPU.</p>
+</div>
+
+<script>
+const H = 200, TOP = 2;
+const RULES = {
+  1:  'If Priority(A) > Priority(B), A runs (B doesn’t).',
+  2:  'If Priority(A) = Priority(B), A and B run in round robin, using the queue’s time slice.',
+  3:  'When a job enters the system, it is placed at the highest priority (the topmost queue).',
+  '4a':'If a job uses up its allotment while running, its priority is reduced (it moves down one queue).',
+  '4b':'If a job gives up the CPU (e.g. for I/O) before the allotment is up, it stays at the same level (its allotment is reset).',
+  4:  'Once a job uses up its time allotment at a level (no matter how many times it has given up the CPU), its priority is reduced.',
+  5:  'After some time period S, move all the jobs in the system to the topmost queue.'
+};
+const STEPS = [
+  { id:'basic', short:'Basic', name:'Basic rules', demote:false, reset:false, boost:false,
+    rules:[[1,'new'],[2,'new']],
+    why:'Separate queues let MLFQ treat interactive and CPU-bound jobs differently.',
+    leaves:'Priorities are fixed, and the OS doesn’t know which jobs are short or interactive. Here every job sits in the top queue, so it is plain round robin.' },
+  { id:'s1', short:'#1 Changing priority', name:'Attempt #1: changing priority', demote:true, reset:true, boost:false,
+    rules:[[1],[2],[3,'new'],['4a','new'],['4b','new']],
+    why:'Learn each job’s type from its behavior. Every new job is assumed short (approximates SJF); jobs that run long sink, jobs that do I/O stay on top.',
+    leaves:'Starvation (interactive jobs hog the top), gaming (yield just before the allotment ends), and phase change (a job that turns interactive is stuck at the bottom).' },
+  { id:'s2', short:'#2 Priority boost', name:'Attempt #2: priority boost', demote:true, reset:true, boost:true,
+    rules:[[1],[2],[3],['4a'],['4b'],[5,'new']],
+    why:'A periodic fresh start: long jobs get the CPU again (fixes starvation) and jobs whose behavior changed get re-judged (fixes phase change).',
+    leaves:'Gaming still works, because rule 4b resets the allotment on every yield. And S is a guess: too long starves, too short hurts interactive jobs.' },
+  { id:'s3', short:'#3 Better accounting', name:'Attempt #3: better accounting', demote:true, reset:false, boost:true,
+    rules:[[1],[2],[3],['4a','gone'],['4b','gone'],[4,'new'],[5]],
+    why:'Rule 4b’s reset is what gaming exploits. Counting total time used at a level, however often the job yields, closes it.',
+    leaves:'Nothing structural. What’s left is tuning: the number of queues, the slice per level, and S.' }
+];
+const J = {
+  A:{c:'--jA'}, B:{c:'--jB'}, C:{c:'--jC'}, G:{c:'--jG'}, P:{c:'--jP'}
+};
+const SC = [
+  { id:'short', short:'Short job', name:'A short job arrives',
+    q:'A long job A runs from t=0; short job B (20 ms) arrives at t=60. Does B finish quickly without MLFQ knowing its length?',
+    jobs:[{id:'A',label:'A long, CPU-bound',arr:0,len:Infinity,burst:Infinity,io:0},
+          {id:'B',label:'B short, 20 ms',arr:60,len:20,burst:Infinity,io:0}],
+    verdict(r){const b=r.jobs.B; if(b.done==null) return {ok:false,text:'B not finished'};
+      const ta=b.done-b.arr; return {ok:ta<=30,text:`B turnaround ${ta} ms (length 20)`};},
+    col:'B finishes fast' },
+  { id:'starve', short:'Starvation', name:'Interactive jobs keep the top busy',
+    q:'Long job A runs from t=0. At t=30, B and C arrive; each runs 5 ms then waits 5 ms for I/O, so one of them is always ready. Does A still get the CPU?',
+    jobs:[{id:'A',label:'A long, CPU-bound',arr:0,len:Infinity,burst:Infinity,io:0},
+          {id:'B',label:'B interactive (run 5, I/O 5)',arr:30,len:Infinity,burst:5,io:5},
+          {id:'C',label:'C interactive (run 5, I/O 5)',arr:30,len:Infinity,burst:5,io:5}],
+    verdict(r){const a=r.jobs.A; return {ok:a.maxWait<100,text:`A’s longest wait ${a.maxWait} ms`};},
+    col:'A isn’t starved' },
+  { id:'gaming', short:'Gaming', name:'A job games the scheduler',
+    q:'Long job A runs from t=0. At t=30, G arrives: it runs 9 ms of each 10 ms slice, then does 1 ms of I/O to give up the CPU just in time. Does G get to hog the CPU?',
+    jobs:[{id:'A',label:'A long, CPU-bound',arr:0,len:Infinity,burst:Infinity,io:0},
+          {id:'G',label:'G gamer (run 9, I/O 1)',arr:30,len:Infinity,burst:9,io:1}],
+    verdict(r){const g=r.jobs.G, share=Math.round(100*g.cpuSince/(H-30)); return {ok:share<=70,text:`G got ${share}% of the CPU after t=30`};},
+    col:'G can’t hog the CPU' },
+  { id:'phase', short:'Phase change', name:'A job turns interactive',
+    q:'A and P both start CPU-bound. At t=80, P turns interactive: it runs 1 ms, then waits 4 ms for I/O. Does P respond quickly once it wakes up?',
+    jobs:[{id:'A',label:'A long, CPU-bound',arr:0,len:Infinity,burst:Infinity,io:0},
+          {id:'P',label:'P CPU-bound, interactive from t=80',arr:0,len:Infinity,burst:Infinity,io:4,switchAt:80}],
+    verdict(r){const p=r.jobs.P; const avg=p.wakes?p.wakeWait/p.wakes:0; return {ok:avg<=3,text:`P waits ${avg.toFixed(1)} ms after each I/O`};},
+    col:'P responds fast after t=80' }
+];
+
+function simulate(step, sc, S, longer){
+  const slice = longer ? [40,20,10] : [10,10,10]; // index = queue level (0 bottom)
+  const jobs = sc.jobs.map(d => ({...d, level:TOP, used:0, rem:d.len, burstLeft:d.burst,
+    state:'na', ioUntil:0, first:null, done:null, cpu:0, cpuSince:0, maxWait:0, curWait:0,
+    wakes:0, wakeWait:0, wokeAt:null, lane:[] }));
+  const Q = [[],[],[]];
+  const run = []; const boosts = [];
+  let cur = null, sliceLeft = 0;
+  const enqueue = j => { j.state='ready'; Q[j.level].push(j); };
+  for (let t=0; t<H; t++){
+    for (const j of jobs){
+      if (j.state==='na' && j.arr===t){ j.level=TOP; enqueue(j); }
+      if (j.state==='io' && j.ioUntil===t){ enqueue(j); j.wokeAt=t; }
+      if (j.switchAt!=null && t>=j.switchAt){ j.burst=1; if (j.burstLeft>1) j.burstLeft=1; }
+    }
+    if (step.boost && t>0 && t%S===0){
+      boosts.push(t);
+      const order = [...Q[2],...Q[1],...Q[0]];
+      Q[0]=[];Q[1]=[];Q[2]=order;
+      for (const j of jobs){ if (j.state!=='na' && j.state!=='done'){ j.level=TOP; j.used=0; } }
+      if (cur) sliceLeft = slice[TOP];
+    }
+    if (cur){
+      const higher = Q.slice(cur.level+1).some(q=>q.length);
+      if (higher){ enqueue(cur); cur=null; }
+    }
+    if (!cur){
+      for (let l=TOP; l>=0; l--){ if (Q[l].length){ cur=Q[l].shift(); break; } }
+      if (cur){ cur.state='run'; sliceLeft=slice[cur.level];
+        if (cur.first==null) cur.first=t;
+        if (cur.wokeAt!=null){ if (t>=(cur.switchAt ?? 0)){ cur.wakes++; cur.wakeWait+=t-cur.wokeAt; } cur.wokeAt=null; } }
+    }
+    for (const j of jobs){
+      if (j===cur) j.lane.push('run');
+      else if (j.state==='ready'){ j.lane.push('ready'); j.curWait++; j.maxWait=Math.max(j.maxWait,j.curWait); }
+      else j.lane.push(j.state==='io'?'io':'na');
+      if (j.state!=='ready') j.curWait = 0;
+    }
+    run.push(cur ? {id:cur.id, level:cur.level} : null);
+    if (!cur) continue;
+    const j = cur;
+    j.cpu++; if (t>=30) j.cpuSince++;
+    j.rem--; j.burstLeft--; j.used++; sliceLeft--;
+    if (j.rem<=0){ j.state='done'; j.done=t+1; cur=null; continue; }
+    if (step.demote && j.used>=slice[j.level]){ if (j.level>0) j.level--; j.used=0; sliceLeft=0; }
+    if (j.burstLeft<=0){
+      j.state='io'; j.ioUntil=t+1+j.io; j.burstLeft=j.burst; if (step.reset) j.used=0; cur=null; continue;
+    }
+    if (sliceLeft<=0){ enqueue(j); cur=null; }
+  }
+  const byId = {}; for (const j of jobs) byId[j.id]=j;
+  return {jobs:byId, list:jobs, run, boosts, slice};
+}
+
+// ---------- rendering ----------
+const state = { step:'s1', sc:'starve', S:50, longer:false };
+try { const s = JSON.parse(localStorage.getItem('mlfq-ladder')||'null'); if (s) Object.assign(state, s); } catch(e){}
+const save = () => { try { localStorage.setItem('mlfq-ladder', JSON.stringify(state)); } catch(e){} };
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent, text){ const e=document.createElementNS(NS,tag); for (const k in attrs) e.setAttribute(k,attrs[k]); if (text!=null) e.textContent=text; parent&&parent.appendChild(e); return e; }
+
+function buildSeg(){
+  $('stepSeg').innerHTML=''; $('scSeg').innerHTML='';
+  for (const s of STEPS){ const b=document.createElement('button'); b.type='button'; b.textContent=s.short; b.id='step-'+s.id;
+    b.setAttribute('aria-pressed', state.step===s.id); b.onclick=()=>{state.step=s.id; render();}; $('stepSeg').appendChild(b); }
+  for (const s of SC){ const b=document.createElement('button'); b.type='button'; b.textContent=s.short; b.id='sc-'+s.id;
+    b.setAttribute('aria-pressed', state.sc===s.id); b.onclick=()=>{state.sc=s.id; render();}; $('scSeg').appendChild(b); }
+}
+
+function renderMatrix(){
+  const t = $('mx'); t.innerHTML='';
+  const thead = t.createTHead(), hr = thead.insertRow();
+  const h0 = document.createElement('th'); h0.textContent='Step'; hr.appendChild(h0);
+  for (const s of SC){ const th=document.createElement('th'); th.innerHTML=`${s.short}<small>${s.col}</small>`; hr.appendChild(th); }
+  const tb = t.createTBody();
+  STEPS.forEach((st,i)=>{
+    const tr = tb.insertRow(); if (st.id===state.step) tr.className='sel';
+    const th=document.createElement('th'); th.innerHTML=`${st.short}<small>rules ${st.rules.filter(r=>r[1]!=='gone').map(r=>r[0]).join(' ')}</small>`; tr.appendChild(th);
+    for (const s of SC){
+      const r = simulate(st, s, state.S, state.longer), v = s.verdict(r);
+      const td = tr.insertCell(), b=document.createElement('button');
+      b.type='button'; b.className='cell '+(v.ok?'ok':'bad')+(st.id===state.step&&s.id===state.sc?' cur':'');
+      b.textContent=(v.ok?'✓ ':'✗ ')+(v.ok?'handles it':'fails');
+      b.title=v.text; b.setAttribute('aria-label',`${st.short}, ${s.short}: ${v.ok?'handles it':'fails'}. ${v.text}`);
+      b.onclick=()=>{state.step=st.id; state.sc=s.id; render();};
+      td.appendChild(b);
+    }
+  });
+}
+
+function renderRules(st){
+  const i = STEPS.indexOf(st);
+  $('stepLabel').textContent = `Step ${i+1} of ${STEPS.length}`;
+  $('stepName').textContent = st.name;
+  const ul = $('rules'); ul.innerHTML='';
+  for (const [n,flag] of st.rules){
+    const li=document.createElement('li'); if (flag) li.className=flag;
+    li.innerHTML=`<span class="n">R${n}</span><span>${RULES[n]}${flag==='new'?'<span class="tag">new</span>':''}${flag==='gone'?'<span class="tag">replaced by R4</span>':''}</span>`;
+    ul.appendChild(li);
+  }
+  $('why').innerHTML=`<div class="w"><b>Why it’s needed</b>${st.why}</div><div class="l"><b>Problem it leaves</b>${st.leaves}</div>`;
+}
+
+function renderCharts(st, sc, r){
+  const W=880, L=78, R=10, px=(W-L-R)/H;
+  const x = t => L + t*px;
+  // queue view
+  const qs=$('qsvg'); qs.innerHTML='';
+  const rowH=34, qTop=8, qH=qTop+rowH*3+26;
+  qs.setAttribute('viewBox',`0 0 ${W} ${qH}`);
+  for (let l=TOP; l>=0; l--){
+    const y=qTop+(TOP-l)*rowH;
+    el('rect',{x:L,y:y,width:W-L-R,height:rowH-4,fill:css('--soft'),rx:3},qs);
+    el('text',{x:L-10,y:y+rowH/2+2,'text-anchor':'end','font-size':12,fill:css('--muted')},qs,`Q${l}${l===TOP?' top':l===0?' low':''}`);
+    el('text',{x:L-10,y:y+rowH/2+14,'text-anchor':'end','font-size':9,fill:css('--muted')},qs,`${r.slice[l]} ms`);
+  }
+  let seg=null;
+  const flush=()=>{ if(!seg) return; const y=qTop+(TOP-seg.level)*rowH;
+    el('rect',{x:x(seg.t0)+.4,y:y+3,width:Math.max(1,(seg.t1-seg.t0)*px-.8),height:rowH-10,fill:css(J[seg.id].c),rx:2},qs); seg=null; };
+  r.run.forEach((c,t)=>{
+    if (c && seg && seg.id===c.id && seg.level===c.level && seg.t1===t){ seg.t1=t+1; return; }
+    flush(); if (c) seg={id:c.id,level:c.level,t0:t,t1:t+1};
+  }); flush();
+  axis(qs, x, qTop+rowH*3, 4);
+  boostMarks(qs, x, r.boosts, qTop-4, qTop+rowH*3);
+  // job lanes
+  const js=$('jsvg'); js.innerHTML='';
+  const lh=26, jTop=6, jH=jTop+lh*r.list.length+26;
+  js.setAttribute('viewBox',`0 0 ${W} ${jH}`);
+  const defs=el('defs',{},js);
+  r.list.forEach((j,i)=>{
+    const col=css(J[j.id].c), y=jTop+i*lh;
+    const pat=el('pattern',{id:'h'+j.id,width:5,height:5,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'},defs);
+    el('rect',{width:5,height:5,fill:'none'},pat); el('rect',{width:2,height:5,fill:col,opacity:.55},pat);
+    el('text',{x:L-10,y:y+lh/2+4,'text-anchor':'end','font-size':12,fill:col,'font-weight':600},js,j.id);
+    let s0=0;
+    for (let t=1; t<=H; t++){
+      if (t===H || j.lane[t]!==j.lane[s0]){
+        const kind=j.lane[s0], x0=x(s0), w=(t-s0)*px;
+        if (kind==='run') el('rect',{x:x0+.3,y:y+4,width:Math.max(1,w-.6),height:lh-10,fill:col,rx:2},js);
+        else if (kind==='ready') el('rect',{x:x0,y:y+4,width:w,height:lh-10,fill:`url(#h${j.id})`},js);
+        else if (kind==='io') el('rect',{x:x0,y:y+lh/2-2,width:w,height:3,fill:css('--io')},js);
+        s0=t;
+      }
+    }
+  });
+  axis(js, x, jTop+lh*r.list.length, 2);
+  boostMarks(js, x, r.boosts, jTop-2, jTop+lh*r.list.length);
+  // legend
+  const lg=$('legend'); lg.innerHTML='';
+  for (const j of sc.jobs){ lg.insertAdjacentHTML('beforeend',`<span><i class="sw" style="background:var(${J[j.id].c})"></i>${j.label}</span>`); }
+  lg.insertAdjacentHTML('beforeend',`<span><i class="sw ready"></i>ready, waiting</span><span><i class="sw io"></i>in I/O</span>`);
+  if (st.boost) lg.insertAdjacentHTML('beforeend',`<span><i class="sw boost"></i>priority boost (every ${state.S} ms)</span>`);
+}
+function axis(svg, x, y, pad){
+  el('line',{x1:x(0),x2:x(H),y1:y+pad,y2:y+pad,stroke:css('--line')},svg);
+  for (let t=0; t<=H; t+=20){
+    el('line',{x1:x(t),x2:x(t),y1:y+pad,y2:y+pad+4,stroke:css('--muted')},svg);
+    el('text',{x:x(t),y:y+pad+16,'text-anchor':t===0?'start':t===H?'end':'middle','font-size':10,fill:css('--muted')},svg,t===H?`${t} ms`:t);
+  }
+}
+function boostMarks(svg, x, boosts, y0, y1){
+  for (const b of boosts) el('line',{x1:x(b),x2:x(b),y1:y0,y2:y1,stroke:css('--boost'),'stroke-width':1.5,'stroke-dasharray':'3 3'},svg);
+}
+
+function renderMetrics(sc, r){
+  const t=$('metrics');
+  const rows = r.list.map(j=>{
+    const share = Math.round(100*j.cpu/(H-j.arr));
+    const ta = j.done!=null ? (j.done-j.arr)+' ms' : 'still running';
+    const wake = j.io ? (j.wakes ? (j.wakeWait/j.wakes).toFixed(1)+' ms' : '—') : '—';
+    return `<tr><td><span class="sw" style="background:var(${J[j.id].c});margin-right:6px;vertical-align:-1px"></span>${j.label}</td>
+      <td>${j.cpu} ms</td><td>${share}%</td><td>${j.first!=null?(j.first-j.arr)+' ms':'—'}</td><td>${ta}</td><td>${j.maxWait} ms</td><td>${wake}</td></tr>`;
+  }).join('');
+  t.innerHTML=`<thead><tr><th>Job</th><th>CPU time</th><th>Share since arrival</th><th>Response</th><th>Turnaround</th><th>Longest wait</th><th>Wait after I/O</th></tr></thead><tbody>${rows}</tbody>`;
+}
+
+function render(){
+  save();
+  const st = STEPS.find(s=>s.id===state.step), sc = SC.find(s=>s.id===state.sc);
+  for (const s of STEPS) $('step-'+s.id).setAttribute('aria-pressed', s.id===state.step);
+  for (const s of SC) $('sc-'+s.id).setAttribute('aria-pressed', s.id===state.sc);
+  $('sRange').value=state.S; $('sVal').textContent=state.S+' ms'; $('longer').checked=state.longer;
+  $('sRange').disabled = !st.boost;
+  const r = simulate(st, sc, state.S, state.longer), v = sc.verdict(r);
+  $('scName').textContent = sc.name; $('scQ').textContent = sc.q;
+  const vd=$('verdict'); vd.className='verdict '+(v.ok?'ok':'bad'); vd.textContent=(v.ok?'✓ ':'✗ ')+v.text;
+  renderMatrix(); renderRules(st); renderCharts(st, sc, r); renderMetrics(sc, r);
+}
+$('sRange').addEventListener('input', e=>{ state.S=+e.target.value; render(); });
+$('longer').addEventListener('change', e=>{ state.longer=e.target.checked; render(); });
+buildSeg(); render();
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', render);
+new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+</script>
+</html>
