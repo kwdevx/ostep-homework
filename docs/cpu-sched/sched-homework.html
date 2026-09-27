@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Scheduling Homework Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Schibsted+Grotesk:wght@400;500;700;800&display=swap">
+<style>
+:root {
+  --bg: #F2F4F7; --surface: #FFFFFF; --sunken: #E8ECF2; --code: #1B2230; --code-ink: #DCE3EE;
+  --ink: #18202E; --muted: #5B6577; --line: #D6DCE6;
+  --accent: #2450B8; --accent-soft: #DCE5F8;
+  --good: #1E7F4F; --good-soft: #D8F0E3;
+  --j0: #E07A3F; --j1: #2E9E8F; --j2: #7B5CC7; --j3: #C24A6B; --j4: #6E8B2A;
+  --on-job: #FFFFFF;
+  --sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #10141B; --surface: #181E28; --sunken: #121720; --code: #0B0F15; --code-ink: #DCE3EE;
+    --ink: #E6EAF1; --muted: #98A2B3; --line: #2A3342;
+    --accent: #86A6F2; --accent-soft: #1E2A45;
+    --good: #5FCB94; --good-soft: #15301F;
+    --j0: #E48A55; --j1: #3FB2A2; --j2: #9178D6; --j3: #D2627F; --j4: #88A640;
+    --on-job: #0E1218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #10141B; --surface: #181E28; --sunken: #121720; --code: #0B0F15; --code-ink: #DCE3EE;
+  --ink: #E6EAF1; --muted: #98A2B3; --line: #2A3342;
+  --accent: #86A6F2; --accent-soft: #1E2A45;
+  --good: #5FCB94; --good-soft: #15301F;
+  --j0: #E48A55; --j1: #3FB2A2; --j2: #9178D6; --j3: #D2627F; --j4: #88A640;
+  --on-job: #0E1218;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 920px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 22px; }
+header { display: grid; gap: 8px; }
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+p { margin: 0; max-width: 68ch; }
+.lede { color: var(--muted); }
+code { font-family: var(--mono); font-size: .9em; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; }
+nav a { font: 600 13px var(--mono); color: var(--ink); text-decoration: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; }
+nav a:hover { border-color: var(--accent); color: var(--accent); }
+
+.q { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 16px; min-width: 0; scroll-margin-top: 12px; }
+.q-head { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; }
+.qnum { font: 600 13px var(--mono); color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 3px 8px; }
+.q h2 { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.4; text-wrap: balance; }
+
+.cmd { position: relative; background: var(--code); color: var(--code-ink); border-radius: 8px; padding: 12px 84px 12px 14px; font: 400 13px/1.7 var(--mono); overflow-x: auto; white-space: pre; }
+.copy { position: absolute; top: 8px; right: 8px; font: 500 12px var(--sans); color: var(--code-ink); background: transparent; border: 1px solid #3A4557; border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+.copy:hover { border-color: var(--code-ink); }
+button:focus-visible, summary:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.scroll { overflow-x: auto; }
+.gantt { min-width: 520px; display: grid; gap: 10px; }
+.lane { display: grid; gap: 4px; }
+.lane-head { display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; font-size: 14px; }
+.lane-head b { font-weight: 700; }
+.lane-head .stats { margin-left: auto; font: 400 12px var(--mono); color: var(--muted); display: flex; gap: 12px; font-variant-numeric: tabular-nums; }
+.lane-head .stats strong { color: var(--ink); font-weight: 600; }
+.track { position: relative; height: 28px; background: var(--sunken); border-radius: 5px; overflow: hidden; }
+.seg { position: absolute; top: 0; bottom: 0; display: grid; place-items: center; font: 600 11px var(--mono); color: var(--on-job); overflow: hidden; }
+.axis { position: relative; height: 18px; font: 400 11px var(--mono); color: var(--muted); }
+.tick { position: absolute; top: 2px; transform: translateX(-50%); }
+.tick:first-child { transform: none; }
+.tick:last-child { transform: translateX(-100%); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.caption { font-size: 13px; color: var(--muted); }
+
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); font-size: 13px; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); }
+td { font-family: var(--mono); }
+th:first-child, td:first-child { text-align: left; }
+td.same { color: var(--good); font-weight: 600; }
+
+svg { width: 100%; height: auto; display: block; }
+svg text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+
+details { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: 14px; color: var(--accent); list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "▸ "; }
+details[open] summary::before { content: "▾ "; }
+.answer { padding: 0 14px 14px; display: grid; gap: 8px; }
+.answer ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; max-width: 68ch; }
+.formula { font: 600 15px var(--mono); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; justify-self: start; }
+
+.explore { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; }
+.explore label { display: grid; gap: 2px; font-size: 13px; font-weight: 500; }
+.explore input { width: 90px; font: 400 14px var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+.explore output { font: 400 13px var(--mono); color: var(--muted); }
+.explore output b { color: var(--ink); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">OSTEP ch.7 · Homework · cpu-sched/scheduler.py</div>
+    <h1>Scheduling Homework Lab</h1>
+    <p class="lede">The seven questions from the chapter, each with the exact command to run and the simulator's results drawn out. Run the commands from <code>cpu-sched/</code> in the ostep-homework repo (they work in fish and bash). Answers stay folded until you open them.</p>
+    <nav aria-label="Questions">
+      <a href="#q1">Q1</a><a href="#q2">Q2</a><a href="#q3">Q3</a><a href="#q4">Q4</a><a href="#q5">Q5</a><a href="#q6">Q6</a><a href="#q7">Q7</a>
+    </nav>
+  </header>
+
+  <section class="q" id="q1">
+    <div class="q-head"><span class="qnum">Q1</span><h2>Response and turnaround time for three jobs of length 200, with SJF and FIFO.</h2></div>
+    <div class="cmd">python3 scheduler.py -p SJF -l 200,200,200 -c
+python3 scheduler.py -p FIFO -l 200,200,200 -c</div>
+    <div class="scroll"><div class="gantt" data-runs='[["SJF",[200,200,200]],["FIFO",[200,200,200]]]'></div></div>
+    <details><summary>Answer</summary><div class="answer">
+      <p>Both give the same schedule: response 0, 200, 400 (avg <b>200</b>); turnaround 200, 400, 600 (avg <b>400</b>).</p>
+      <p>With equal lengths SJF has nothing to reorder, so it runs the jobs in arrival order, exactly like FIFO.</p>
+    </div></details>
+  </section>
+
+  <section class="q" id="q2">
+    <div class="q-head"><span class="qnum">Q2</span><h2>Same, with jobs of length 100, 200 and 300.</h2></div>
+    <div class="cmd">python3 scheduler.py -p SJF -l 100,200,300 -c
+python3 scheduler.py -p FIFO -l 100,200,300 -c</div>
+    <div class="scroll"><div class="gantt" data-runs='[["SJF",[100,200,300]],["FIFO",[100,200,300]]]'></div></div>
+    <details><summary>Answer</summary><div class="answer">
+      <p>Still identical: response 0, 100, 300 (avg <b>133.33</b>); turnaround 100, 300, 600 (avg <b>333.33</b>).</p>
+      <p>The jobs already arrive shortest-first, so FIFO's order happens to be SJF's order. Try <code>-l 300,200,100</code> to see them split (Q4).</p>
+    </div></details>
+  </section>
+
+  <section class="q" id="q3">
+    <div class="q-head"><span class="qnum">Q3</span><h2>Same, but also with the RR scheduler and a time slice of 1.</h2></div>
+    <div class="cmd">python3 scheduler.py -p RR -q 1 -l 200,200,200 -c
+python3 scheduler.py -p RR -q 1 -l 100,200,300 -c</div>
+    <div class="scroll"><div class="gantt" data-runs='[["RR",[200,200,200],1],["RR",[100,200,300],1]]'></div></div>
+    <table>
+      <thead><tr><th>Workload</th><th>Policy</th><th>Avg response</th><th>Avg turnaround</th></tr></thead>
+      <tbody>
+        <tr><td>200, 200, 200</td><td>SJF / FIFO</td><td>200</td><td>400</td></tr>
+        <tr><td>200, 200, 200</td><td>RR q=1</td><td>1</td><td>599</td></tr>
+        <tr><td>100, 200, 300</td><td>SJF / FIFO</td><td>133.33</td><td>333.33</td></tr>
+        <tr><td>100, 200, 300</td><td>RR q=1</td><td>1</td><td>465.67</td></tr>
+      </tbody>
+    </table>
+    <details><summary>Answer</summary><div class="answer">
+      <p>RR with q=1: response 0, 1, 2 (avg <b>1</b>) for both workloads. Turnaround gets much worse: avg <b>599</b> (equal jobs: all finish at the very end, 598–600) and <b>465.67</b> for 100/200/300 (298, 499, 600).</p>
+      <p>The fairness trade-off from the chapter: RR is great for response, one of the worst for turnaround.</p>
+    </div></details>
+  </section>
+
+  <section class="q" id="q4">
+    <div class="q-head"><span class="qnum">Q4</span><h2>For what types of workloads does SJF deliver the same turnaround times as FIFO?</h2></div>
+    <div class="cmd">python3 scheduler.py -p FIFO -l 100,200,300 -c   # arrives shortest-first
+python3 scheduler.py -p SJF  -l 100,200,300 -c
+python3 scheduler.py -p FIFO -l 300,200,100 -c   # arrives longest-first
+python3 scheduler.py -p SJF  -l 300,200,100 -c</div>
+    <div class="scroll"><div class="gantt" data-runs='[["FIFO",[300,200,100]],["SJF",[300,200,100]]]'></div></div>
+    <table>
+      <thead><tr><th>Arrival order</th><th>FIFO avg turnaround</th><th>SJF avg turnaround</th></tr></thead>
+      <tbody>
+        <tr><td>100, 200, 300 (shortest first)</td><td class="same">333.33</td><td class="same">333.33</td></tr>
+        <tr><td>200, 200, 200 (all equal)</td><td class="same">400</td><td class="same">400</td></tr>
+        <tr><td>300, 200, 100 (longest first)</td><td>466.67</td><td>333.33</td></tr>
+      </tbody>
+    </table>
+    <details><summary>Answer</summary><div class="answer">
+      <p>When the jobs already arrive in order of non-decreasing length (shortest first, or all the same length). Then FIFO's order <em>is</em> SJF's order, so the schedules and turnaround times are identical.</p>
+      <p>Any time a longer job arrives before a shorter one, SJF reorders and wins (the convoy effect FIFO suffers from).</p>
+    </div></details>
+  </section>
+
+  <section class="q" id="q5">
+    <div class="q-head"><span class="qnum">Q5</span><h2>For what types of workloads and quantum lengths does SJF deliver the same response times as RR?</h2></div>
+    <div class="cmd">python3 scheduler.py -p SJF -l 100,200,300 -c
+python3 scheduler.py -p RR -q 1   -l 100,200,300 -c   # small slice: differs
+python3 scheduler.py -p RR -q 300 -l 100,200,300 -c   # slice ≥ longest job: same
+python3 scheduler.py -p RR -q 200 -l 200,200,200 -c   # equal jobs, slice = length: same</div>
+    <div class="scroll"><div class="gantt" data-runs='[["SJF",[100,200,300]],["RR",[100,200,300],1],["RR",[100,200,300],300]]'></div></div>
+    <details><summary>Answer</summary><div class="answer">
+      <p>When the quantum is at least as long as every job (<code>q ≥ max length</code>) <b>and</b> the jobs arrive shortest-first. Each job then finishes within its first slice, so RR never preempts and degenerates into FIFO, which equals SJF for that arrival order (Q4).</p>
+      <ul>
+        <li>100, 200, 300 with q=300: avg response 133.33, same as SJF.</li>
+        <li>200, 200, 200 with q=200: avg response 200, same as SJF.</li>
+        <li>Any smaller q preempts, and RR's response drops below SJF's.</li>
+      </ul>
+    </div></details>
+  </section>
+
+  <section class="q" id="q6">
+    <div class="q-head"><span class="qnum">Q6</span><h2>What happens to response time with SJF as job lengths increase? Use the simulator to show the trend.</h2></div>
+    <div class="cmd">printf '%s\n' 100 200 300 400 500 | xargs -I{} sh -c 'printf "L={} "; python3 scheduler.py -p SJF -l {},{},{} -c | grep Average'</div>
+    <svg id="chart6" viewBox="0 0 520 220" role="img" aria-label="SJF average response time grows linearly with job length"></svg>
+    <p class="caption">Three equal jobs of length L. Simulator output: L=100 → 100, 200 → 200, 300 → 300, 400 → 400, 500 → 500.</p>
+    <details><summary>Answer</summary><div class="answer">
+      <p>Response time grows <b>linearly</b> with job length. A job's response is the total length of every job that runs before it, so longer jobs mean longer waits for the ones behind them.</p>
+      <p class="formula">response(job k) = sum of lengths of jobs before it</p>
+      <p>For N equal jobs of length L: responses are 0, L, 2L, …, (N−1)L, so the average is <code>(N−1)·L / 2</code> (= L for N=3).</p>
+    </div></details>
+  </section>
+
+  <section class="q" id="q7">
+    <div class="q-head"><span class="qnum">Q7</span><h2>What happens to response time with RR as quantum lengths increase? Write an equation for the worst-case response time, given N jobs.</h2></div>
+    <div class="cmd">printf '%s\n' 1 5 10 20 50 100 | xargs -I{} sh -c 'printf "q={} "; python3 scheduler.py -p RR -q {} -l 100,100,100 -c | grep Average'
+python3 scheduler.py -p RR -q 10 -l 100,100,100,100,100 -c   # N=5: last job's response = 40</div>
+    <svg id="chart7" viewBox="0 0 520 220" role="img" aria-label="RR average response time grows with quantum until it reaches the job length"></svg>
+    <p class="caption">Three jobs of length 100. Simulator output: q=1 → 1, 5 → 5, 10 → 10, 20 → 20, 50 → 50, 100 → 100. Past q=100 the jobs finish in one slice and RR behaves like FIFO, so it stays flat.</p>
+    <div class="explore" aria-label="Worst-case calculator">
+      <label for="n7">Jobs N<input type="number" id="n7" min="1" max="50" value="5"></label>
+      <label for="q7">Quantum q<input type="number" id="q7" min="1" max="1000" value="10"></label>
+      <output id="out7"></output>
+    </div>
+    <details><summary>Answer</summary><div class="answer">
+      <p>Response time grows <b>linearly</b> with the quantum: each job waits one full slice for every job ahead of it in the queue. Once q reaches the job length, it stops growing (RR has become FIFO).</p>
+      <p>The last of N jobs that arrive together waits for N−1 slices:</p>
+      <p class="formula">worst-case response = (N − 1) · q</p>
+      <ul>
+        <li>N=5, q=10 → 40, matching the simulator (responses 0, 10, 20, 30, 40).</li>
+        <li>If a job is shorter than q it gives up the CPU early, so more precisely: sum of <code>min(q, length)</code> over the jobs ahead.</li>
+        <li>With a context-switch cost c, it becomes <code>(N − 1) · (q + c)</code>; see <em>Amortizing the Context Switch</em>.</li>
+      </ul>
+    </div></details>
+  </section>
+</div>
+
+<script>
+const name = i => String.fromCharCode(65 + i);
+const color = i => `var(--j${i % 5})`;
+const fmt = x => Number.isInteger(x) ? String(x) : x.toFixed(2);
+
+// Mirrors scheduler.py: all jobs arrive at t=0; SJF sorts by length (stable), RR cycles the queue.
+function simulate(policy, lens, q) {
+  const n = lens.length, rem = [...lens], first = Array(n).fill(null), done = Array(n).fill(null), segs = [];
+  const run = (i, s, e) => {
+    const last = segs[segs.length - 1];
+    if (last && last.job === i && last.end === s) last.end = e; else segs.push({ job: i, start: s, end: e });
+    if (first[i] === null) first[i] = s;
+  };
+  let t = 0;
+  if (policy === "RR") {
+    const queue = [...Array(n).keys()];
+    while (queue.length) {
+      const i = queue.shift(), d = Math.min(q, rem[i]);
+      run(i, t, t + d); t += d; rem[i] -= d;
+      if (rem[i] > 0) queue.push(i); else done[i] = t;
+    }
+  } else {
+    const order = [...Array(n).keys()];
+    if (policy === "SJF") order.sort((a, b) => lens[a] - lens[b] || a - b);
+    for (const i of order) { run(i, t, t + lens[i]); t += lens[i]; done[i] = t; }
+  }
+  const avg = a => a.reduce((s, x) => s + x, 0) / n;
+  return { segs, end: t, avgR: avg(first), avgT: avg(done) };
+}
+
+document.querySelectorAll(".gantt").forEach(el => {
+  const runs = JSON.parse(el.dataset.runs).map(([p, lens, q]) => ({ p, lens, q, r: simulate(p, lens, q) }));
+  const end = Math.max(...runs.map(x => x.r.end));
+  const pct = x => (x / end * 100) + "%";
+  const maxJobs = Math.max(...runs.map(x => x.lens.length));
+  el.innerHTML = runs.map(({ p, lens, q, r }) => `
+    <div class="lane">
+      <div class="lane-head"><b>${p}${q ? ` q=${q}` : ""}</b><span class="caption">-l ${lens.join(",")}</span>
+        <span class="stats"><span>response <strong>${fmt(r.avgR)}</strong></span><span>turnaround <strong>${fmt(r.avgT)}</strong></span></span></div>
+      <div class="track" role="img" aria-label="${p} timeline">${r.segs.map(s =>
+        `<span class="seg" style="left:${pct(s.start)};width:${pct(s.end - s.start)};background:${color(s.job)}" title="job ${s.job} (${name(s.job)}): ${s.start}–${s.end}">${(s.end - s.start) / end > .04 ? name(s.job) : ""}</span>`).join("")}</div>
+    </div>`).join("")
+    + `<div class="axis">${[0, .25, .5, .75, 1].map(f => `<span class="tick" style="left:${f * 100}%">${Math.round(f * end)}</span>`).join("")}</div>`
+    + `<div class="legend">${Array.from({ length: maxJobs }, (_, i) => `<span><i style="background:${color(i)}"></i>${name(i)} = job ${i}</span>`).join("")}</div>`;
+});
+
+function lineChart(svg, pts, xLabel, yLabel, markLast) {
+  const W = 520, H = 220, L = 52, R = 16, T = 14, B = 40;
+  const xMax = Math.max(...pts.map(p => p[0])), yMax = Math.max(...pts.map(p => p[1]));
+  const x = v => L + v / xMax * (W - L - R), y = v => T + (1 - v / yMax) * (H - T - B);
+  const path = pts.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1)).join("");
+  const yt = [0, yMax / 2, yMax];
+  svg.innerHTML = `
+    ${yt.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`).join("")}
+    <path d="${path}L${x(pts[pts.length - 1][0])} ${y(0)}L${x(pts[0][0])} ${y(0)}Z" fill="var(--accent-soft)" stroke="none"/>
+    <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    ${pts.filter(p => p.sim).map(p => `<circle cx="${x(p[0])}" cy="${y(p[1])}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`).join("")}
+    ${pts.filter(p => p.sim).map(p => `<text x="${x(p[0])}" y="${H - 22}" text-anchor="middle">${p[0]}</text>`).join("")}
+    <text x="${(L + W - R) / 2}" y="${H - 4}" text-anchor="middle">${xLabel}</text>
+    <text x="${L}" y="${T - 2}" text-anchor="start" dy="-2" style="font-size:10px">${yLabel}</text>`;
+}
+const sim = p => Object.assign(p, { sim: true });
+// Q6: avg response for three equal jobs of length L (simulator points at 100..500)
+lineChart(document.getElementById("chart6"), [sim([100, 100]), sim([200, 200]), sim([300, 300]), sim([400, 400]), sim([500, 500])],"job length L", "avg response");
+// Q7: avg response for 3×100 as q grows; flat once q ≥ 100
+const q7 = [1, 5, 10, 20, 50, 100].map(q => sim([q, q]));
+lineChart(document.getElementById("chart7"), [[0, 0], ...q7, [150, 100], sim([200, 100])], "quantum q", "avg response");
+
+const n7 = document.getElementById("n7"), qIn = document.getElementById("q7"), out7 = document.getElementById("out7");
+function update7() {
+  const n = Math.max(1, Math.min(50, Math.round(+n7.value || 1))), q = Math.max(1, Math.min(1000, Math.round(+qIn.value || 1)));
+  const lens = Array(n).fill(1000);  // long jobs, so every job uses its full first slice
+  const r = simulate("RR", lens, q), worst = r.segs.find(s => s.job === n - 1).start;
+  out7.innerHTML = `worst case = (${n} − 1) × ${q} = <b>${(n - 1) * q}</b> · simulated: <b>${worst}</b>`;
+}
+[n7, qIn].forEach(el => el.addEventListener("input", update7));
+update7();
+
+document.querySelectorAll(".cmd").forEach(el => {
+  const text = el.textContent;
+  const b = document.createElement("button");
+  b.className = "copy"; b.type = "button"; b.textContent = "Copy";
+  b.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; }
+    catch { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Selected"; }
+    setTimeout(() => b.textContent = "Copy", 1500);
+  });
+  el.appendChild(b);
+});
+</script>
+</html>

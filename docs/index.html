@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSTEP Homework Visuals</title>
+<style>
+:root { --bg: #F2F4F7; --surface: #FFFFFF; --ink: #18202E; --muted: #5B6577; --line: #D6DCE6; --accent: #2450B8; }
+@media (prefers-color-scheme: dark) { :root { color-scheme: dark; --bg: #10141B; --surface: #181E28; --ink: #E6EAF1; --muted: #98A2B3; --line: #2A3342; --accent: #86A6F2; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 32px 20px; display: grid; gap: 16px; }
+h1 { margin: 0; font-size: 28px; }
+p { margin: 0; color: var(--muted); }
+ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+a { display: grid; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; color: var(--ink); text-decoration: none; }
+a:hover, a:focus-visible { border-color: var(--accent); }
+a b { color: var(--accent); }
+</style>
+<main>
+  <h1>OSTEP Homework Visuals</h1>
+  <p>Interactive companions to the homework in this repo.</p>
+  <h2>Chapter 7 · CPU Scheduling (<code>cpu-sched/</code>)</h2>
+  <ul>
+    <li><a href="cpu-sched/sched-homework.html"><b>Scheduling Homework Lab</b><span>The 7 questions: commands, simulator results, answers</span></a></li>
+    <li><a href="cpu-sched/scheduler-bench.html"><b>Scheduler Bench</b><span>FIFO, SJF, STCF and RR side by side on your own workload</span></a></li>
+    <li><a href="cpu-sched/amortization.html"><b>Amortizing the Context Switch</b><span>Time slice vs switch cost vs response time</span></a></li>
+  </ul>
+</main>
+</html>

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Amortizing the Context Switch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Schibsted+Grotesk:wght@400;500;700;800&display=swap">
+<style>
+:root {
+  --bg: #F2F4F7; --surface: #FFFFFF; --sunken: #E8ECF2;
+  --ink: #18202E; --muted: #5B6577; --line: #D6DCE6;
+  --accent: #2450B8; --accent-soft: #DCE5F8;
+  --cost: #C23B4E; --cost-soft: #F7DDE1;
+  --j0: #E07A3F; --j1: #2E9E8F; --j2: #7B5CC7; --j3: #3C8FD0; --j4: #6E8B2A; --j5: #B8860B; --j6: #8C5A3C; --j7: #4A7A8C;
+  --on-job: #FFFFFF;
+  --sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #10141B; --surface: #181E28; --sunken: #121720;
+    --ink: #E6EAF1; --muted: #98A2B3; --line: #2A3342;
+    --accent: #86A6F2; --accent-soft: #1E2A45;
+    --cost: #EF6B7E; --cost-soft: #3A1C24;
+    --j0: #E48A55; --j1: #3FB2A2; --j2: #9178D6; --j3: #5AA5E0; --j4: #88A640; --j5: #D1A232; --j6: #B07A58; --j7: #6FA0B2;
+    --on-job: #0E1218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #10141B; --surface: #181E28; --sunken: #121720;
+  --ink: #E6EAF1; --muted: #98A2B3; --line: #2A3342;
+  --accent: #86A6F2; --accent-soft: #1E2A45;
+  --cost: #EF6B7E; --cost-soft: #3A1C24;
+  --j0: #E48A55; --j1: #3FB2A2; --j2: #9178D6; --j3: #5AA5E0; --j4: #88A640; --j5: #D1A232; --j6: #B07A58; --j7: #6FA0B2;
+  --on-job: #0E1218;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; display: grid; gap: 24px; }
+header { display: grid; gap: 8px; }
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+.lede { margin: 0; max-width: 66ch; font-size: 17px; }
+.lede b { font-weight: 700; }
+h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+p { margin: 0; max-width: 66ch; }
+code { font-family: var(--mono); font-size: .9em; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 18px; min-width: 0; }
+
+.controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 24px; }
+@media (max-width: 720px) { .controls { grid-template-columns: 1fr; } }
+.control { display: grid; gap: 4px; }
+.control label { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 500; }
+.control output { font: 600 14px var(--mono); font-variant-numeric: tabular-nums; }
+.control small { color: var(--muted); font-size: 12px; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.presets span { font-size: 13px; color: var(--muted); margin-right: 4px; }
+.chip { font: 500 13px var(--sans); color: var(--ink); background: var(--sunken); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+
+.readouts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 720px) { .readouts { grid-template-columns: 1fr; } }
+.readout { border-top: 3px solid var(--line); padding-top: 10px; display: grid; gap: 2px; }
+.readout.cost { border-top-color: var(--cost); }
+.readout.work { border-top-color: var(--j1); }
+.readout.wait { border-top-color: var(--accent); }
+.readout .big { font: 600 30px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.readout .lbl { font-size: 14px; font-weight: 500; }
+.readout .sub { font: 400 12px var(--mono); color: var(--muted); }
+
+.scroll { overflow-x: auto; }
+.strip-wrap { min-width: 560px; display: grid; gap: 4px; }
+.strip { position: relative; height: 40px; background: var(--sunken); border-radius: 6px; overflow: hidden; }
+.seg { position: absolute; top: 0; bottom: 0; display: grid; place-items: center; font: 600 11px var(--mono); color: var(--on-job); overflow: hidden; }
+.seg.sw { background: repeating-linear-gradient(135deg, var(--cost) 0 3px, var(--cost-soft) 3px 6px); }
+.marks { position: relative; height: 26px; }
+.mark { position: absolute; top: 0; transform: translateX(-50%); font: 600 11px var(--mono); color: var(--accent); white-space: nowrap; padding-top: 10px; }
+.mark::before { content: ""; position: absolute; top: 0; left: 50%; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid var(--accent); transform: translateX(-50%); }
+.axis { position: relative; height: 20px; font: 400 11px var(--mono); color: var(--muted); }
+.tick { position: absolute; top: 0; transform: translateX(-50%); }
+.tick:first-child { transform: none; }
+.tick:last-child { transform: translateX(-100%); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; }
+.legend .sw { background: repeating-linear-gradient(135deg, var(--cost) 0 3px, var(--cost-soft) 3px 6px); }
+
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 720px) { .charts { grid-template-columns: 1fr; } }
+.chart { display: grid; gap: 6px; }
+.chart h3 { margin: 0; font-size: 14px; font-weight: 700; }
+.chart p { font-size: 13px; color: var(--muted); }
+svg { width: 100%; height: auto; display: block; }
+svg text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.verdict { font-size: 15px; background: var(--accent-soft); border-radius: 8px; padding: 12px 14px; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
+.cols > div { display: grid; gap: 10px; align-content: start; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--line); font-size: 14px; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); }
+td { font-family: var(--mono); font-size: 13px; }
+th:first-child, td:first-child { text-align: left; }
+ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; max-width: 66ch; }
+.formula { font: 400 15px var(--mono); background: var(--sunken); border-radius: 6px; padding: 10px 12px; overflow-x: auto; white-space: nowrap; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">OSTEP ch.7 · Tip · Round Robin</div>
+    <h1>Amortizing the Context Switch</h1>
+    <p class="lede">When an operation carries a <b>fixed cost</b> every time it happens, do it <b>less often</b>, so each payment covers more useful work. In Round Robin the fixed cost is the context switch, and the lever is the time slice.</p>
+  </header>
+
+  <section class="panel" aria-label="Simulator">
+    <div class="presets" id="presets"><span>Book example:</span></div>
+    <div class="controls">
+      <div class="control">
+        <label for="q">Time slice <output id="q-out"></output></label>
+        <input type="range" id="q" min="1" max="200" step="1">
+        <small>How long each job runs per turn</small>
+      </div>
+      <div class="control">
+        <label for="c">Context-switch cost <output id="c-out"></output></label>
+        <input type="range" id="c" min="0.1" max="10" step="0.1">
+        <small>Fixed cost paid on every switch</small>
+      </div>
+      <div class="control">
+        <label for="n">Jobs taking turns <output id="n-out"></output></label>
+        <input type="range" id="n" min="2" max="8" step="1">
+        <small>All ready at t = 0</small>
+      </div>
+    </div>
+
+    <div class="readouts">
+      <div class="readout cost"><span class="lbl">CPU time lost to switching</span><span class="big" id="r-over"></span><span class="sub" id="r-over-f"></span></div>
+      <div class="readout work"><span class="lbl">CPU time doing real work</span><span class="big" id="r-work"></span><span class="sub" id="r-work-f"></span></div>
+      <div class="readout wait"><span class="lbl">Wait before the last job's first turn</span><span class="big" id="r-wait"></span><span class="sub" id="r-wait-f"></span></div>
+    </div>
+
+    <div class="legend" id="legend"></div>
+    <div class="scroll">
+      <div class="strip-wrap">
+        <div class="strip" id="strip" role="img"></div>
+        <div class="marks" id="marks"></div>
+        <div class="axis" id="axis"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="The trade-off">
+    <h2>The trade-off</h2>
+    <div class="charts">
+      <div class="chart">
+        <h3>Overhead falls as the slice grows</h3>
+        <p>Share of CPU time spent switching</p>
+        <svg id="chart-over" viewBox="0 0 400 190" aria-label="Overhead percentage against time slice"></svg>
+      </div>
+      <div class="chart">
+        <h3>…but response time climbs</h3>
+        <p>Wait before the last job first runs</p>
+        <svg id="chart-wait" viewBox="0 0 400 190" aria-label="Response wait against time slice"></svg>
+      </div>
+    </div>
+    <p class="verdict" id="verdict"></p>
+  </section>
+
+  <section class="panel" aria-label="Explanation">
+    <div class="cols">
+      <div>
+        <h2>The math</h2>
+        <p>Each turn is one slice of real work plus one switch:</p>
+        <div class="formula">overhead = switch / (slice + switch)</div>
+        <p>The switch cost is fixed, so a bigger slice shrinks its share. The book rounds this to <code>switch / slice</code>: 1ms per 10ms ≈ 10%, per 100ms &lt; 1%.</p>
+        <table>
+          <thead><tr><th>Slice</th><th>Switch</th><th>Exact overhead</th><th>Book's estimate</th></tr></thead>
+          <tbody id="book-table"></tbody>
+        </table>
+      </div>
+      <div>
+        <h2>What a "switch" really costs</h2>
+        <ul>
+          <li><b>Direct:</b> saving and restoring registers, switching the kernel stack and page tables.</li>
+          <li><b>Hidden:</b> the new job starts with cold CPU caches, TLB and branch predictors, and runs slowly until they warm up. This is often the bigger part.</li>
+        </ul>
+        <h2>The same trick elsewhere</h2>
+        <ul>
+          <li>Buffered I/O: collect many small writes, then do one disk write.</li>
+          <li>Batching system calls or network packets: one crossing, many items.</li>
+          <li>Memory allocators: grab a big chunk from the OS, hand out small pieces.</li>
+        </ul>
+        <p>Always the same shape: a fixed cost per operation, paid less often, spread over more work. The price is usually latency.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const PRESETS = [
+  { label: "10ms slice, 1ms switch", q: 10, c: 1, n: 3 },
+  { label: "100ms slice, 1ms switch", q: 100, c: 1, n: 3 },
+];
+let s = { q: 10, c: 1, n: 3 };
+const WINDOW = 220;  // ms of CPU time shown in the strip
+
+const fmt = (x, d = 1) => (Math.round(x * 10 ** d) / 10 ** d).toString();
+const ms = x => fmt(x) + "ms";
+const job = i => `var(--j${i % 8})`;
+const name = i => String.fromCharCode(65 + i);
+const overhead = (q, c) => c / (q + c);
+const wait = (q, c, n) => (n - 1) * (q + c);
+
+function renderPresets() {
+  const el = $("presets");
+  el.querySelectorAll(".chip").forEach(b => b.remove());
+  PRESETS.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.type = "button"; b.textContent = p.label;
+    b.setAttribute("aria-pressed", String(s.q === p.q && s.c === p.c));
+    b.addEventListener("click", () => { s = { ...s, q: p.q, c: p.c }; sync(); });
+    el.appendChild(b);
+  });
+}
+
+function renderStrip() {
+  const { q, c, n } = s, segs = [];
+  let t = 0, k = 0;
+  while (t < WINDOW) {
+    segs.push({ type: "work", job: k % n, start: t, end: Math.min(WINDOW, t + q) }); t += q;
+    if (t >= WINDOW) break;
+    segs.push({ type: "sw", start: t, end: Math.min(WINDOW, t + c) }); t += c; k++;
+  }
+  const pct = x => (x / WINDOW * 100) + "%";
+  $("strip").innerHTML = segs.map(g => g.type === "sw"
+    ? `<span class="seg sw" style="left:${pct(g.start)};width:${pct(g.end - g.start)}" title="switch ${fmt(g.start)}–${fmt(g.end)}ms"></span>`
+    : `<span class="seg" style="left:${pct(g.start)};width:${pct(g.end - g.start)};background:${job(g.job)}" title="job ${name(g.job)} ${fmt(g.start)}–${fmt(g.end)}ms">${(g.end - g.start) / WINDOW > .035 ? name(g.job) : ""}</span>`).join("");
+  $("strip").setAttribute("aria-label", `First ${WINDOW}ms of CPU time: ${n} jobs alternate ${q}ms slices with ${c}ms switches`);
+  const w = wait(q, c, n);
+  $("marks").innerHTML = w <= WINDOW
+    ? `<span class="mark" style="left:${pct(w)}">${name(n - 1)} first runs at ${ms(w)}</span>`
+    : `<span class="mark" style="left:calc(100% - 90px)">${name(n - 1)} first runs at ${ms(w)} →</span>`;
+  $("axis").innerHTML = [0, 50, 100, 150, 200, WINDOW].filter((v, i, a) => a.indexOf(v) === i)
+    .map(v => `<span class="tick" style="left:${pct(v)}">${v}${v === WINDOW ? "ms" : ""}</span>`).join("");
+  $("legend").innerHTML = Array.from({ length: n }, (_, i) => `<span><i style="background:${job(i)}"></i>job ${name(i)}</span>`).join("")
+    + `<span><i class="sw"></i>context switch (wasted)</span>`;
+}
+
+function niceMax(v) {
+  const mag = 10 ** Math.floor(Math.log10(v));
+  return [1, 2, 2.5, 5, 10].map(m => m * mag).find(m => m >= v);
+}
+
+function lineChart(svg, fn, yMax, unit, color, fillVar) {
+  const W = 400, H = 190, L = 44, R = 12, T = 12, B = 30;
+  const x = q => L + (q - 1) / 199 * (W - L - R), y = v => T + (1 - v / yMax) * (H - T - B);
+  const pts = []; for (let q = 1; q <= 200; q += 1) pts.push([x(q), y(fn(q))]);
+  const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join("");
+  const area = line + `L${x(200)} ${y(0)}L${x(1)} ${y(0)}Z`;
+  const yt = [0, yMax / 2, yMax], xt = [1, 50, 100, 150, 200];
+  const cx = x(s.q), cy = y(fn(s.q));
+  svg.innerHTML = `
+    ${yt.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>
+      <text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}${unit}</text>`).join("")}
+    ${xt.map(v => `<text x="${x(v)}" y="${H - 10}" text-anchor="middle">${v}</text>`).join("")}
+    <text x="${W - R}" y="${H - 10}" text-anchor="end" dy="-12">slice (ms)</text>
+    <path d="${area}" fill="${fillVar}" stroke="none"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="2"/>
+    <line x1="${cx}" x2="${cx}" y1="${T}" y2="${y(0)}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="3 3"/>
+    <circle cx="${cx}" cy="${cy}" r="5" fill="${color}" stroke="var(--surface)" stroke-width="2"/>
+    <text x="${cx < W / 2 ? cx + 9 : cx - 9}" y="${Math.max(T + 12, cy - 10)}" text-anchor="${cx < W / 2 ? "start" : "end"}" style="fill:var(--ink);font-weight:600">${fmt(fn(s.q))}${unit}</text>`;
+}
+
+function render() {
+  const { q, c, n } = s, o = overhead(q, c), w = wait(q, c, n);
+  $("q-out").textContent = ms(q); $("c-out").textContent = ms(c); $("n-out").textContent = n;
+  $("r-over").textContent = fmt(o * 100) + "%";
+  $("r-over-f").textContent = `${c} / (${q} + ${c})`;
+  $("r-work").textContent = fmt((1 - o) * 100) + "%";
+  $("r-work-f").textContent = `${q} / (${q} + ${c})`;
+  $("r-wait").textContent = ms(w);
+  $("r-wait-f").textContent = `${n - 1} × (${q} + ${c})`;
+  renderStrip();
+  lineChart($("chart-over"), qq => overhead(qq, c) * 100, niceMax(overhead(1, c) * 100), "%", "var(--cost)", "var(--cost-soft)");
+  lineChart($("chart-wait"), qq => wait(qq, c, n), niceMax(wait(200, c, n)), "", "var(--accent)", "var(--accent-soft)");
+  $("verdict").textContent = o > .05
+    ? `At ${ms(q)} slices, ${fmt(o * 100)}% of the CPU goes to switching. A longer slice would amortize that cost, but the last job would wait longer for its first turn.`
+    : `At ${ms(q)} slices, switching costs only ${fmt(o * 100)}%. The cost is amortized, but the last job now waits ${ms(w)} for its first turn. Make the slice too long and Round Robin loses the response time it exists for.`;
+  renderPresets();
+}
+
+function sync() { $("q").value = s.q; $("c").value = s.c; $("n").value = s.n; render(); }
+["q", "c", "n"].forEach(k => $(k).addEventListener("input", e => { s[k] = Number(e.target.value); render(); }));
+
+$("book-table").innerHTML = [[10, 1], [100, 1]].map(([q, c]) =>
+  `<tr><td>${q}ms</td><td>${c}ms</td><td>${fmt(overhead(q, c) * 100, 2)}%</td><td>${fmt(c / q * 100)}%</td></tr>`).join("");
+sync();
+</script>
+</html>
